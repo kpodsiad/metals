@@ -409,6 +409,12 @@ trait CommonMtagsEnrichments {
     def isSbt: Boolean = {
       filename.endsWith(".sbt")
     }
+    def isClassfile: Boolean = {
+      filename.endsWith(".class")
+    }
+    def isTasty: Boolean = {
+      filename.endsWith(".tasty")
+    }
     def isScalaScript: Boolean = {
       filename.endsWith(".sc")
     }

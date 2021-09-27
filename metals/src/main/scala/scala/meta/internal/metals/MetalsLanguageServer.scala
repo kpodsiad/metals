@@ -676,8 +676,7 @@ class MetalsLanguageServer(
           fileSystemSemanticdbs,
           languageClient,
           clientConfig,
-          classFinder,
-          () => httpServer
+          classFinder
         )
         popupChoiceReset = new PopupChoiceReset(
           workspace,
@@ -1605,6 +1604,13 @@ class MetalsLanguageServer(
         disconnectOldBuildServer().asJavaObject
       case ServerCommands.DecodeFile(uri) =>
         fileDecoderProvider.decodedFileContents(uri).asJavaObject
+      case ServerCommands.ChooseClass(params) =>
+        fileDecoderProvider
+          .chooseClassFromFile(
+            params.textDocument.getUri().toAbsolutePath,
+            params.includeInnerClasses
+          )
+          .asJavaObject
       case ServerCommands.RunDoctor() =>
         Future {
           doctor.executeRunDoctor()
@@ -1723,9 +1729,6 @@ class MetalsLanguageServer(
           command.foreach(languageClient.metalsExecuteClientCommand)
           scribe.debug(s"Executing AnalyzeStacktrace ${command}")
         }.asJavaObject
-
-      case ServerCommands.ShowTasty(positionParams) =>
-        fileDecoderProvider.showTasty(positionParams).asJavaObject
 
       case ServerCommands.GotoSuperMethod(textDocumentPositionParams) =>
         Future {

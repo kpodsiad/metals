@@ -4,6 +4,7 @@ import javax.annotation.Nullable
 
 import ch.epfl.scala.{bsp4j => b}
 import org.eclipse.lsp4j.Location
+import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.eclipse.lsp4j.TextDocumentPositionParams
 
 /**
@@ -204,20 +205,22 @@ object ServerCommands {
     "[string], where the string is a stacktrace."
   )
 
-  val ShowTasty = new ParametrizedCommand[TextDocumentPositionParams](
-    "show-tasty",
-    "Show TASTy",
-    """|If the file is a Scala 3 source, this command will try to find the relevant tasty file for it, 
-       |read it and display it in a human readable format. If the argument already points to a TASTy file, 
-       |it will be read directly.""".stripMargin,
-    """|
-       |Object with `document` and `position`, where the document is a path to a Scala 3 source or a tasty file.
+  final case class ChooseClassRequest(
+      textDocument: TextDocumentIdentifier,
+      includeInnerClasses: Boolean
+  )
+  val ChooseClass = new ParametrizedCommand[ChooseClassRequest](
+    "choose-class",
+    "Choose class",
+    """|Shows toplevel definitions such as classes, traits, objects and toplevel methods which are defined in a given scala file. 
+       |Then, returns an URI pointing to the .tasty or .class file for class picked by user""".stripMargin,
+    """|Object with `textDocument` and `includeInnerClasses`
        |
        |Example:
        |```json
        |{
-       |  document: "file:///home/dev/foo/Bar.scala",
-       |  position: {line: 5, character: 12}
+       |  textDocument: {uri: file:///home/dev/foo/Bar.scala},
+       |  includeInnerClasses: true
        |}
        |```
        |""".stripMargin
@@ -450,7 +453,6 @@ object ServerCommands {
       CascadeCompile,
       CleanCompile,
       CopyWorksheetOutput,
-      ShowTasty,
       ExtractMemberDefinition,
       GenerateBspConfig,
       GotoPosition,
