@@ -4,6 +4,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 import scala.meta.Defn
+import scala.meta.Member
 import scala.meta.Pkg
 import scala.meta.Position
 import scala.meta.Tree
@@ -34,7 +35,6 @@ class ClassFinder(trees: Trees) {
     for {
       tree <- trees.get(path)
     } yield {
-      val suffixToStrip = if (checkInnerClasses) "" else "$"
       val extension = if (checkInnerClasses) "class" else "tasty"
       val definitions = new mutable.ArrayBuffer[ClassWithPos]()
       var isToplevelAdded: Boolean = false
@@ -47,13 +47,17 @@ class ClassFinder(trees: Trees) {
         case _: Defn.Def => "Toplevel package"
       }
 
-      def addDfn(dfn: Tree): Unit = {
+      def addDfn(dfn: Member, isInnerClass: Boolean = false): Unit = {
+        val suffixToStrip = if (isInnerClass || !checkInnerClasses) "$" else ""
         val classWithPackage =
           findClassForOffset(tree, dfn.pos, path.filename, checkInnerClasses)
             .stripSuffix(suffixToStrip)
         val resourceDir = classWithPackage.replace('.', '/')
-        val resourcePath = s"$resourceDir.$extension"
-        val description = s"$classWithPackage.$extension"
+        val suffix =
+          if (isInnerClass) s"$$${dfn.name.value}.$extension"
+          else s".$extension"
+        val resourcePath = s"$resourceDir$suffix"
+        val description = s"$classWithPackage$suffix"
         val c = ClassWithPos(resourcePath, name(dfn), description)
         definitions.append(c)
       }
@@ -62,12 +66,13 @@ class ClassFinder(trees: Trees) {
         case _: Pkg | _: Pkg.Object =>
           tree.children.foreach(loop(_, isInnerClass))
         case _: Defn.Class | _: Defn.Trait | _: Defn.Object | _: Defn.Enum =>
-          addDfn(tree)
+          addDfn(tree.asInstanceOf[Member], isInnerClass)
           if (checkInnerClasses)
             tree.children.foreach(loop(_, isInnerClass = true))
         case dfn: Defn.Def if !isInnerClass && !isToplevelAdded =>
           isToplevelAdded = true
           addDfn(dfn)
+        case _: Defn.Def => ()
         case _ =>
           tree.children.foreach(loop(_, isInnerClass))
       }

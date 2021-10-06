@@ -37,10 +37,11 @@ class FindAllClassesSuite extends BaseClassFinderSuite {
     "all",
     """|package a
        |class Foo 
-       |object Foo
+       |object Foo {
+       |  class InnerClass
+       |}
        |class Bar {
-       |  val x = 155
-       |  class InsideBar
+       |  class InnerClass
        |  def xx2() = {
        |    class InsideMethod
        |  }
@@ -50,9 +51,32 @@ class FindAllClassesSuite extends BaseClassFinderSuite {
        |""".stripMargin,
     List(
       "Class Foo a.Foo.class", "Object Foo a.Foo$.class",
-      "Class Bar a.Bar.class", "Class InsideBar a.Bar$InsideBar.class",
-      "Class InsideMethod a.Bar$InsideMethod.class",
+      "Class InnerClass a.Foo$InnerClass.class", "Class Bar a.Bar.class",
+      "Class InnerClass a.Bar$InnerClass.class",
       "Toplevel package a.Main$package.class"
+    ),
+    checkInnerClasses = true,
+    scalaVersion = V.scala3
+  )
+
+  check(
+    "inner-classes",
+    """|package a
+       |class Foo {
+       |  class InnerClass
+       |}
+       |object Foo
+       |
+       |object Bar {
+       |  class InnerClass
+       |}
+       |""".stripMargin,
+    List(
+      "Class Foo a.Foo.class",
+      "Class InnerClass a.Foo$InnerClass.class",
+      "Object Foo a.Foo$.class",
+      "Object Bar a.Bar$.class",
+      "Class InnerClass a.Bar$InnerClass.class"
     ),
     checkInnerClasses = true,
     scalaVersion = V.scala3
