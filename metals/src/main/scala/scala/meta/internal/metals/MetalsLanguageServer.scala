@@ -1608,7 +1608,7 @@ class MetalsLanguageServer(
         fileDecoderProvider
           .chooseClassFromFile(
             params.textDocument.getUri().toAbsolutePath,
-            params.includeInnerClasses
+            params.kind == "class"
           )
           .asJavaObject
       case ServerCommands.RunDoctor() =>

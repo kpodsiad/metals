@@ -1,8 +1,5 @@
 package tests.feature
 
-import java.text.SimpleDateFormat
-import java.util.Date
-
 import scala.meta.internal.metals.MetalsEnrichments._
 import scala.meta.internal.metals.{BuildInfo => V}
 
@@ -25,7 +22,7 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         |""".stripMargin,
     "app/src/main/scala/Main.scala",
     None,
-    "tasty-detailed",
+    "tasty-decoded",
     Right(() => FileDecoderProviderLspSuite.tastySingle)
   )
 
@@ -43,8 +40,8 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         |class Bar
         |""".stripMargin,
     "app/src/main/scala/Main.scala",
-    Some("Class Foo"),
-    "tasty-detailed",
+    Some("foo/bar/example/Foo.tasty"),
+    "tasty-decoded",
     Right(() => FileDecoderProviderLspSuite.tastyMultiple)
   )
 
@@ -62,8 +59,8 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         |def foo(): Unit = ()
         |""".stripMargin,
     "app/src/main/scala/Main.scala",
-    Some("Toplevel package"),
-    "tasty-detailed",
+    Some("foo/bar/example/Main$package.tasty"),
+    "tasty-decoded",
     Right(() => FileDecoderProviderLspSuite.tastyToplevel)
   )
 
@@ -81,7 +78,7 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         |class Bar
         |""".stripMargin,
     "app/src/main/scala/Main.scala",
-    Some("Class Foo"),
+    Some("foo/bar/example/Foo.class"),
     "javap",
     Right(() => FileDecoderProviderLspSuite.javap)
   )
@@ -101,7 +98,7 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         |def foo(): Unit = ()
         |""".stripMargin,
     "app/src/main/scala/Main.scala",
-    Some("Toplevel package"),
+    Some("foo/bar/example/Main$package.class"),
     "javap",
     Right(() => FileDecoderProviderLspSuite.javapToplevel)
   )
@@ -120,7 +117,7 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         |class Bar
         |""".stripMargin,
     "app/src/main/scala/Main.scala",
-    Some("Class Foo"),
+    Some("foo/bar/example/Foo.class"),
     "javap-verbose",
     Right(() => {
       val classesDir = for {
@@ -130,7 +127,8 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         target <- server.server.buildTargets.scalaTarget(targetId)
       } yield target.classDirectory.toAbsolutePath.toString
       FileDecoderProviderLspSuite.javapVerbose(classesDir.get)
-    })
+    }),
+    str => str.substring(str.indexOf("Compiled from"), str.length())
   )
 
   check(
@@ -179,7 +177,8 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
       filePath: String,
       picked: Option[String],
       extension: String,
-      expected: Either[String, () => String]
+      expected: Either[String, () => String],
+      transformResult: String => String = identity
   ): Unit = {
     test(testName) {
       picked.foreach { pickedItem =>
@@ -195,7 +194,8 @@ class FileDecoderProviderLspSuite extends BaseLspSuite("fileDecoderProvider") {
         )
       } yield {
         assertEquals(
-          if (result.value != null) Right(result.value) else Left(result.error),
+          if (result.value != null) Right(transformResult(result.value))
+          else Left(result.error),
           expected.map(f => f())
         )
       }
@@ -567,12 +567,8 @@ object FileDecoderProviderLspSuite {
         |}
         |""".stripMargin
 
-  private[this] val format = new SimpleDateFormat("d MMM yyy;")
   private def javapVerbose(workspace: String) =
-    s"""|Classfile $workspace/foo/bar/example/Foo.class
-        |  Last modified ${format.format(new Date())} size 312 bytes
-        |  SHA-256 checksum fae10a1f13dd3fbccf35abc0dec9ec5189b302782a75868a5afed87f6abb1926
-        |  Compiled from "Main.scala"
+    s"""|Compiled from "Main.scala"
         |public class foo.bar.example.Foo
         |  minor version: 0
         |  major version: 52

@@ -1,6 +1,7 @@
 package scala.meta.internal.parsing
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 import scala.meta.Defn
 import scala.meta.Pkg
@@ -12,67 +13,80 @@ import scala.meta.io.AbsolutePath
 import org.eclipse.{lsp4j => l}
 
 final case class ClassWithPos(
-    name: String,
-    pos: Position
+    path: String,
+    friendlyName: String,
+    description: String
 )
 
 class ClassFinder(trees: Trees) {
 
   def findClass(path: AbsolutePath, pos: l.Position): Option[String] =
-    findClass(path, pos, checkInnerClasses = true).filter(_.nonEmpty)
+    findClass(path, pos, checkInnerClasses = true)
 
   def findTasty(path: AbsolutePath, pos: l.Position): Option[String] =
     findClass(path, pos, checkInnerClasses = false)
-      .filter(_.nonEmpty)
       .map(_.stripSuffix("$"))
 
   def findAllClasses(
       path: AbsolutePath,
       checkInnerClasses: Boolean
-  ): Option[List[ClassWithPos]] = {
+  ): Option[List[ClassWithPos]] =
     for {
       tree <- trees.get(path)
     } yield {
-      val definitions = new scala.collection.mutable.ArrayBuffer[ClassWithPos]()
-      var topLevelAdded = false
+      val suffixToStrip = if (checkInnerClasses) "" else "$"
+      val extension = if (checkInnerClasses) "class" else "tasty"
+      val definitions = new mutable.ArrayBuffer[ClassWithPos]()
+      var isToplevelAdded: Boolean = false
 
-      def isToplevel(defn: Defn): Boolean =
-        !definitions.exists { d =>
-          val pos: Position = defn.pos
-          val other = d.pos
-          other.start <= pos.start && other.end >= pos.start
-        }
-
-      def isValid(defn: Defn): Boolean =
-        checkInnerClasses || isToplevel(defn)
-
-      tree.traverse {
-        case obj: Defn.Object if isValid(obj) =>
-          definitions.append(ClassWithPos(s"Object ${obj.name.value}", obj.pos))
-        case cls: Defn.Class if isValid(cls) =>
-          definitions.append(ClassWithPos(s"Class ${cls.name.value}", cls.pos))
-        case trt: Defn.Trait if isValid(trt) =>
-          definitions.append(ClassWithPos(s"Trait ${trt.name.value}", trt.pos))
-        case dfn: Defn.Def if isToplevel(dfn) && !topLevelAdded =>
-          topLevelAdded = true
-          definitions.append(ClassWithPos(s"Toplevel package", dfn.pos))
+      def name(tree: Tree) = tree match {
+        case cls: Defn.Class => s"Class ${cls.name.value}"
+        case cls: Defn.Object => s"Object ${cls.name.value}"
+        case cls: Defn.Trait => s"Trait ${cls.name.value}"
+        case cls: Defn.Enum => s"Enum ${cls.name.value}"
+        case _: Defn.Def => "Toplevel package"
       }
-      definitions.toList
+
+      def addDfn(dfn: Tree): Unit = {
+        val classWithPackage =
+          findClassForOffset(tree, dfn.pos, path.filename, checkInnerClasses)
+            .stripSuffix(suffixToStrip)
+        val resourceDir = classWithPackage.replace('.', '/')
+        val resourcePath = s"$resourceDir.$extension"
+        val description = s"$classWithPackage.$extension"
+        val c = ClassWithPos(resourcePath, name(dfn), description)
+        definitions.append(c)
+      }
+
+      def loop(tree: Tree, isInnerClass: Boolean = false): Unit = tree match {
+        case _: Pkg | _: Pkg.Object =>
+          tree.children.foreach(loop(_, isInnerClass))
+        case _: Defn.Class | _: Defn.Trait | _: Defn.Object | _: Defn.Enum =>
+          addDfn(tree)
+          if (checkInnerClasses)
+            tree.children.foreach(loop(_, isInnerClass = true))
+        case dfn: Defn.Def if !isInnerClass && !isToplevelAdded =>
+          isToplevelAdded = true
+          addDfn(dfn)
+        case _ =>
+          tree.children.foreach(loop(_, isInnerClass))
+      }
+      loop(tree)
+      definitions.toList.distinctBy(_.path)
     }
-  }
 
   private def findClass(
       path: AbsolutePath,
       pos: l.Position,
       checkInnerClasses: Boolean
-  ): Option[String] =
-    for {
-      tree <- trees.get(path)
-    } yield {
+  ): Option[String] = trees
+    .get(path)
+    .map { tree =>
       val input = tree.pos.input
       val metaPos = pos.toMeta(input)
       findClassForOffset(tree, metaPos, path.filename, checkInnerClasses)
     }
+    .filter(_.nonEmpty)
 
   private def findClassForOffset(
       tree: Tree,

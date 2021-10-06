@@ -29,7 +29,6 @@ import scala.meta.metap.Settings
 import scala.meta.pc.PresentationCompiler
 
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier
-import org.eclipse.{lsp4j => l}
 
 /* Response which is sent to the lsp client. Because of java serialization we cannot use
  * sealed hierarchy to model union type of success and error.
@@ -89,8 +88,8 @@ final class FileDecoderProvider(
    * metalsDecode:file:///somePath/someFile.scala.semanticdb.semanticdb-detailed
    *
    * tasty:
-   * metalsDecode:file:///somePath/someFile.scala.tasty-detailed
-   * metalsDecode:file:///somePath/someFile.tasty.tasty-detailed
+   * metalsDecode:file:///somePath/someFile.scala.tasty-decoded
+   * metalsDecode:file:///somePath/someFile.tasty.tasty-decoded
    *
    * jar:
    * jar:file:///somePath/someFile-sources.jar!/somePackage/someFile.java
@@ -172,7 +171,7 @@ final class FileDecoderProvider(
           Some(getJavapDecoder(isVerbose = false))
         case "javap-verbose" =>
           Some(getJavapDecoder(isVerbose = true))
-        case "tasty-detailed" =>
+        case "tasty-decoded" =>
           Some(getTastyDecoder())
         case "semanticdb-compact" =>
           Some(getSemanticdbDecoder(Format.Compact))
@@ -244,7 +243,7 @@ final class FileDecoderProvider(
 
   private def getTastyDecoder(): (Finder, Decoder) = {
     val finder = Finder(uriPath =>
-      toFile(uriPath, ".tasty-detailed") match {
+      toFile(uriPath, ".tasty-decoded") match {
         case Some(path) =>
           if (path.isScala)
             findPathInfoForScalaFile(path, false).map(_.toOption)
@@ -297,46 +296,41 @@ final class FileDecoderProvider(
   ): Future[Either[String, PathInfo]] = {
     val availableClasses = classFinder
       .findAllClasses(path, includeInnerClasses)
-      .filter(_.nonEmpty)
     availableClasses match {
-      case Some(classes) =>
-        val pickedPosition: Future[Option[l.Position]] =
+      case Some(classes) if classes.nonEmpty =>
+        val resourceToDecode: Future[Either[String, String]] =
           if (classes.size > 1) {
-            val positions =
-              classes.map(c => (c.name, c.pos.toLSP.getStart)).toMap
             val quickPickParams = MetalsQuickPickParams(
-              classes.map(c => MetalsQuickPickItem(c.name, c.name)).asJava,
-              placeHolder = "Pick class you want to decode"
+              classes
+                .map(c =>
+                  MetalsQuickPickItem(c.path, c.friendlyName, c.description)
+                )
+                .asJava,
+              placeHolder = "Pick the class you want to decode"
             )
             languageClient.metalsQuickPick(quickPickParams).asScala.map {
               result =>
-                if (result.cancelled != null && result.cancelled) None
-                else positions.get(result.itemId)
+                if (result.cancelled != null && result.cancelled)
+                  Left("Request was cancelled")
+                else Right(result.itemId)
             }
           } else
-            Future.successful(Some(classes.head.pos.toLSP.getStart))
-        pickedPosition.map { positionOpt =>
-          positionOpt.toRight("Request was cancelled").flatMap { position =>
+            Future.successful(Right(classes.head.path))
+        resourceToDecode.map { resource =>
+          resource.flatMap { resourcePath =>
             val pathInfoOpt = for {
               (targetId, target, sourceRoot) <- findBuildTargetMetadata(path)
-              className <-
-                if (includeInnerClasses)
-                  classFinder.findClass(path, position)
-                else classFinder.findTasty(path, position)
             } yield {
-              val suffix = if (!includeInnerClasses) ".tasty" else ".class"
-              val pathToTasty = className.replace('.', '/') + suffix
               val classDir = target.classDirectory.toAbsolutePath
-              val pathToResource =
-                classDir.resolve(pathToTasty)
+              val pathToResource = classDir.resolve(resourcePath)
               PathInfo(Some(targetId), pathToResource)
             }
             pathInfoOpt.toRight(
-              s"Cannot find build target for ${path.toURI.toString}"
+              s"Cannot find a build target for ${path.toURI.toString}"
             )
           }
         }
-      case None =>
+      case _ =>
         Future.successful(
           Left("File doesn't contain any toplevel definitions")
         )

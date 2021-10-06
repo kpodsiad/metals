@@ -8,7 +8,7 @@ import scala.meta.io.AbsolutePath
 
 import munit.TestOptions
 
-class FindAllClasses extends BaseClassFinderSuite {
+class FindAllClassesSuite extends BaseClassFinderSuite {
 
   check(
     "only-toplevel",
@@ -25,10 +25,11 @@ class FindAllClasses extends BaseClassFinderSuite {
        |def foo(): Unit = ()
        |def foo2(): Unit = ()
        |""".stripMargin,
-    s"""|Class Foo (1, 0)
-        |Object Foo (2, 0)
-        |Class Bar (3, 0)
-        |Toplevel package (10, 0)""".stripMargin,
+    List(
+      "Class Foo a.Foo.tasty",
+      "Class Bar a.Bar.tasty",
+      "Toplevel package a.Main$package.tasty"
+    ),
     scalaVersion = V.scala3
   )
 
@@ -47,12 +48,12 @@ class FindAllClasses extends BaseClassFinderSuite {
        |def foo(): Unit = ()
        |def foo2(): Unit = ()
        |""".stripMargin,
-    s"""|Class Foo (1, 0)
-        |Object Foo (2, 0)
-        |Class Bar (3, 0)
-        |Class InsideBar (5, 2)
-        |Class InsideMethod (7, 4)
-        |Toplevel package (10, 0)""".stripMargin,
+    List(
+      "Class Foo a.Foo.class", "Object Foo a.Foo$.class",
+      "Class Bar a.Bar.class", "Class InsideBar a.Bar$InsideBar.class",
+      "Class InsideMethod a.Bar$InsideMethod.class",
+      "Toplevel package a.Main$package.class"
+    ),
     checkInnerClasses = true,
     scalaVersion = V.scala3
   )
@@ -60,7 +61,7 @@ class FindAllClasses extends BaseClassFinderSuite {
   def check(
       name: TestOptions,
       sourceText: String,
-      expected: String,
+      expected: List[String],
       checkInnerClasses: Boolean = false,
       filename: String = "Main.scala",
       scalaVersion: String = V.scala213
@@ -74,8 +75,7 @@ class FindAllClasses extends BaseClassFinderSuite {
       assert(classes.isDefined)
       assertEquals(
         classes.get
-          .map(c => s"${c.name} (${c.pos.startLine}, ${c.pos.startColumn})")
-          .mkString("\n"),
+          .map(c => s"${c.friendlyName} ${c.description}"),
         expected
       )
     }
