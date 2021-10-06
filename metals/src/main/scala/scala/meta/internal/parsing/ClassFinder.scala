@@ -136,6 +136,10 @@ class ClassFinder(trees: Trees) {
           val name = trt.name.toString()
           (symbol + delimeter + name, true)
 
+        case enm: Defn.Enum =>
+          val name = enm.name.toString()
+          (symbol + delimeter + name + "$", true)
+
         case _ =>
           (symbol, isInsideClass)
       }
