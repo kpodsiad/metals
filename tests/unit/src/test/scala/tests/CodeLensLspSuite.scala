@@ -40,7 +40,10 @@ class CodeLensLspSuite extends BaseCodeLensLspSuite("codeLenses") {
        |""".stripMargin
   )
 
-  check("test-suite-class", library = Some("org.scalatest::scalatest:3.0.5"))(
+  check(
+    "test-suite-class".only,
+    library = Some("org.scalatest::scalatest:3.0.5")
+  )(
     """|package foo.bar
        |<<test>><<debug test>>
        |class Foo extends org.scalatest.FunSuite {
@@ -49,7 +52,19 @@ class CodeLensLspSuite extends BaseCodeLensLspSuite("codeLenses") {
        |""".stripMargin
   )
 
-  check("test-suite-object", library = Some("com.lihaoyi::utest:0.7.3"))(
+  check(
+    "test-suite-class-munit".only,
+    library = Some("org.scalameta::munit:0.7.29")
+  )(
+    """|package foo.bar
+       |<<test>><<debug test>>
+       |class Foo extends munit.FunSuite {
+       |  test("foo") {}
+       |}
+       |""".stripMargin
+  )
+
+  check("test-suite-object".only, library = Some("com.lihaoyi::utest:0.7.3"))(
     """|package foo.bar
        |<<test>><<debug test>>
        |object Foo extends utest.TestSuite {
