@@ -94,6 +94,13 @@ object ServerCommands {
        |""".stripMargin
   )
 
+  val DiscoverTests = new Command(
+    "discover-tests",
+    "Discover tests",
+    """|Discover classes with tests
+       |""".stripMargin
+  )
+
   val RunDoctor = new Command(
     "doctor-run",
     "Run doctor",

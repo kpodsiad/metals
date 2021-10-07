@@ -51,6 +51,7 @@ import scala.meta.internal.metals.MetalsEnrichments._
 import scala.meta.internal.metals.ammonite.Ammonite
 import scala.meta.internal.metals.codeactions.ExtractMemberDefinitionData
 import scala.meta.internal.metals.codelenses.RunTestCodeLens
+import scala.meta.internal.metals.testProvider.TestProvider
 import scala.meta.internal.metals.codelenses.SuperMethodCodeLens
 import scala.meta.internal.metals.codelenses.WorksheetCodeLens
 import scala.meta.internal.metals.debug.BuildTargetClasses
@@ -252,6 +253,7 @@ class MetalsLanguageServer(
   private var compilers: Compilers = _
   private var scalafixProvider: ScalafixProvider = _
   private var fileDecoderProvider: FileDecoderProvider = _
+  private var testProvider: TestProvider = _
   private var workspaceReload: WorkspaceReload = _
   private var buildToolSelector: BuildToolSelector = _
   def loadedPresentationCompilerCount(): Int =
@@ -677,6 +679,10 @@ class MetalsLanguageServer(
           languageClient,
           clientConfig,
           classFinder
+        )
+        testProvider = new TestProvider(
+          buildTargets,
+          buildTargetClasses
         )
         popupChoiceReset = new PopupChoiceReset(
           workspace,
@@ -1604,6 +1610,10 @@ class MetalsLanguageServer(
         disconnectOldBuildServer().asJavaObject
       case ServerCommands.DecodeFile(uri) =>
         fileDecoderProvider.decodedFileContents(uri).asJavaObject
+      case ServerCommands.DiscoverTests() =>
+        Future {
+          testProvider.testClasses().toList.asJava
+        }.asJavaObject
       case ServerCommands.ChooseClass(params) =>
         fileDecoderProvider
           .chooseClassFromFile(

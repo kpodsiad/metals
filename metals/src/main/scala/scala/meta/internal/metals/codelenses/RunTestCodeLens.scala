@@ -70,6 +70,8 @@ final class RunTestCodeLens(
       classes: BuildTargetClasses.Classes,
       distance: TokenEditDistance
   ): Seq[l.CodeLens] = {
+    println(classes.mainClasses.toList)
+    println(classes.testClasses.toList)
     for {
       occurrence <- textDocument.occurrences
       if occurrence.role.isDefinition
