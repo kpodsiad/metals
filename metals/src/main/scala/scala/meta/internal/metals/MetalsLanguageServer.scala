@@ -546,6 +546,7 @@ class MetalsLanguageServer(
             buffers,
             buildTargets,
             clientConfig,
+            () => userConfig,
             () => bspSession.exists(_.main.isBloopOrSbt),
             trees
           )
@@ -1215,7 +1216,7 @@ class MetalsLanguageServer(
   ): CompletableFuture[Unit] =
     Future {
       val json = params.getSettings.asInstanceOf[JsonElement].getAsJsonObject
-      UserConfiguration.fromJson(json) match {
+      UserConfiguration.fromJson(json, clientConfig) match {
         case Left(errors) =>
           errors.foreach { error => scribe.error(s"config error: $error") }
           Future.successful(())

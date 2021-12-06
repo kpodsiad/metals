@@ -25,7 +25,8 @@ final case class ClientExperimentalCapabilities(
     quickPickProvider: Option[Boolean],
     slowTaskProvider: Option[Boolean],
     statusBarProvider: Option[String],
-    treeViewProvider: Option[Boolean]
+    treeViewProvider: Option[Boolean],
+    testExplorerProvider: Option[Boolean]
 ) {
   def doctorFormat: Option[DoctorFormat.DoctorFormat] =
     doctorProvider.flatMap(DoctorFormat.fromString)
@@ -37,6 +38,7 @@ final case class ClientExperimentalCapabilities(
 object ClientExperimentalCapabilities {
   import scala.meta.internal.metals.JsonParser._
   val Default: ClientExperimentalCapabilities = ClientExperimentalCapabilities(
+    None,
     None,
     None,
     None,
@@ -86,7 +88,8 @@ object ClientExperimentalCapabilities {
       quickPickProvider = jsonObj.getBooleanOption("quickPickProvider"),
       slowTaskProvider = jsonObj.getBooleanOption("slowTaskProvider"),
       statusBarProvider = jsonObj.getStringOption("statusBarProvider"),
-      treeViewProvider = jsonObj.getBooleanOption("treeViewProvider")
+      treeViewProvider = jsonObj.getBooleanOption("treeViewProvider"),
+      testExplorerProvider = jsonObj.getBooleanOption("testExplorerProvider")
     )
   }
 }

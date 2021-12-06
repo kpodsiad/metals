@@ -24,6 +24,7 @@ import ch.epfl.scala.bsp4j.BuildTargetIdentifier
 import ch.epfl.scala.{bsp4j => b}
 import com.google.gson.JsonElement
 import org.eclipse.{lsp4j => l}
+import scala.meta.internal.metals.UserConfiguration
 
 /**
  * Class to generate the Run and Test code lenses to trigger debugging.
@@ -39,6 +40,7 @@ final class RunTestCodeLens(
     buffers: Buffers,
     buildTargets: BuildTargets,
     clientConfig: ClientConfiguration,
+    userConfig: () => UserConfiguration,
     isBloopOrSbt: () => Boolean,
     trees: Trees
 ) extends CodeLens {

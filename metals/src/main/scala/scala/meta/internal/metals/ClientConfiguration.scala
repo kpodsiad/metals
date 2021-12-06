@@ -135,6 +135,13 @@ class ClientConfiguration(
       false
     )
 
+  def isTestExplorerProvider(): Boolean =
+    extract(
+      initializationOptions.testExplorerProvider,
+      experimentalCapabilities.testExplorerProvider,
+      false
+    )
+
   def isDidFocusProvider(): Boolean =
     extract(
       initializationOptions.didFocusProvider,
