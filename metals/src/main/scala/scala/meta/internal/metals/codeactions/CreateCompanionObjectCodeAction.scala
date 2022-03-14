@@ -17,12 +17,12 @@ import scala.meta.{Defn, Term}
  * @param trees
  */
 class CreateCompanionObjectCodeAction(
-                                       trees: Trees
-                                     ) extends CodeAction {
+    trees: Trees
+) extends CodeAction {
   override def kind: String = l.CodeActionKind.RefactorRewrite
 
   override def contribute(params: CodeActionParams, token: CancelToken)(implicit
-                                                                        ec: ExecutionContext
+      ec: ExecutionContext
   ): Future[Seq[l.CodeAction]] = Future {
     val path = params.getTextDocument().getUri().toAbsolutePath
     val range = params.getRange()
@@ -48,9 +48,9 @@ class CreateCompanionObjectCodeAction(
   }
 
   def buildCreatingCompanionObjectCodeAction(
-                                              path: AbsolutePath,
-                                              classDefinition: Defn.Class
-                                            ): l.CodeAction = {
+      path: AbsolutePath,
+      classDefinition: Defn.Class
+  ): l.CodeAction = {
     val codeAction = new l.CodeAction()
     codeAction.setTitle(CreateCompanionObjectCodeAction.companionObjectInfo)
     codeAction.setKind(this.kind)
@@ -75,9 +75,9 @@ class CreateCompanionObjectCodeAction(
   }
 
   def buildShowingCompanionObjectCodeAction(
-                                             path: AbsolutePath,
-                                             comanionObject: Defn.Object
-                                           ): l.CodeAction = {
+      path: AbsolutePath,
+      comanionObject: Defn.Object
+  ): l.CodeAction = {
     val codeAction = new l.CodeAction()
     codeAction.setTitle(CreateCompanionObjectCodeAction.companionObjectInfo)
     val command = new lsp4j.Command()
@@ -88,20 +88,20 @@ class CreateCompanionObjectCodeAction(
   }
 
   private def findCompanionObjectOfClass(
-                                          classDefinition: Defn.Class
-                                        ): Option[Defn.Object] =
+      classDefinition: Defn.Class
+  ): Option[Defn.Object] =
     classDefinition.parent.flatMap(_.children.collectFirst {
       case potentialCompanionObject: Defn.Object
-        if (potentialCompanionObject.name.value == classDefinition.name.value) =>
+          if (potentialCompanionObject.name.value == classDefinition.name.value) =>
         potentialCompanionObject
     })
 
   private def applyWithSingleFunction: Term.Apply => Boolean = {
     // exclude case when body has more than one line (is a Block) because it cannot be rewritten to parens
     case Term.Apply(
-    _,
-    List(Term.Block(List(Term.Function(_, _: Term.Block))))
-    ) =>
+          _,
+          List(Term.Block(List(Term.Function(_, _: Term.Block))))
+        ) =>
       false
     case Term.Apply(_, List(_: Term)) => true
     //   Term.Apply(_, List(Term.Block(List(_: Term)))) is already included in the one above
