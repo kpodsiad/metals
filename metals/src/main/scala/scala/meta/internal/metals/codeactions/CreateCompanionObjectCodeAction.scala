@@ -1,7 +1,7 @@
 package scala.meta.internal.metals.codeactions
 
 import org.eclipse.lsp4j.CodeActionParams
-import org.eclipse.{lsp4j, lsp4j => l}
+import org.eclipse.{lsp4j => l}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.meta.internal.metals.CodeAction
@@ -24,17 +24,20 @@ class CreateCompanionObjectCodeAction(
   override def contribute(params: CodeActionParams, token: CancelToken)(implicit
       ec: ExecutionContext
   ): Future[Seq[l.CodeAction]] = Future {
+    pprint.log("contribute")
     val path = params.getTextDocument().getUri().toAbsolutePath
     val range = params.getRange()
     val applyTree =
       if (range.getStart == range.getEnd)
         trees
-          .findLastEnclosingAt[Term.Apply](
+          .findLastEnclosingAt[Defn.Class](
             path,
             range.getStart(),
             applyWithSingleFunction
           )
       else None
+
+    pprint.log(applyTree)
 
     applyTree.collect { case classDefinition: Defn.Class =>
       findCompanionObjectOfClass(classDefinition) match {
@@ -57,13 +60,14 @@ class CreateCompanionObjectCodeAction(
     val rangeStart = classDefinition.pos.toLSP.getEnd
     val rangeEnd = classDefinition.pos.toLSP.getEnd
     rangeEnd.setLine(rangeEnd.getLine + 5)
-    val range = new lsp4j.Range(rangeStart, rangeEnd)
+    val range = new l.Range(rangeStart, rangeEnd)
     val companionObjectFirstLine = new l.TextEdit(
       range,
-      s"""
-         |object ${classDefinition.name.value}{}
-         |
-         |""".stripMargin
+      s"""|
+          |object ${classDefinition.name.value} {
+          |
+          |}
+          |""".stripMargin
     )
 
     codeAction.setEdit(
@@ -80,7 +84,7 @@ class CreateCompanionObjectCodeAction(
   ): l.CodeAction = {
     val codeAction = new l.CodeAction()
     codeAction.setTitle(CreateCompanionObjectCodeAction.companionObjectInfo)
-    val command = new lsp4j.Command()
+    val command = new l.Command()
 
     codeAction.setKind(this.kind)
     codeAction.setData()
@@ -96,16 +100,9 @@ class CreateCompanionObjectCodeAction(
         potentialCompanionObject
     })
 
-  private def applyWithSingleFunction: Term.Apply => Boolean = {
+  private def applyWithSingleFunction: Defn.Class => Boolean = {
     // exclude case when body has more than one line (is a Block) because it cannot be rewritten to parens
-    case Term.Apply(
-          _,
-          List(Term.Block(List(Term.Function(_, _: Term.Block))))
-        ) =>
-      false
-    case Term.Apply(_, List(_: Term)) => true
-    //   Term.Apply(_, List(Term.Block(List(_: Term)))) is already included in the one above
-    case _ => false
+    case _ => true
   }
 }
 
