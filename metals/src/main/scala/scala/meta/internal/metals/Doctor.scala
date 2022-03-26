@@ -24,8 +24,6 @@ import ch.epfl.scala.bsp4j.BuildTargetIdentifier
 
 /**
  * Helps the user figure out what is mis-configured in the build through the "Run doctor" command.
- *
- * At the moment, the doctor only validates that SemanticDB is enabled for all projects.
  */
 final class Doctor(
     workspace: AbsolutePath,

@@ -184,6 +184,8 @@ class MetalsLanguageServer(
     () => workspace,
     languageClient,
     () => testProvider.refreshTestSuites(),
+    () =>
+      languageClient.metalsExecuteClientCommand(ClientCommands.ReloadDoctor),
     buildTarget => focusedDocumentBuildTarget.get() == buildTarget,
     worksheets => onWorksheetChanged(worksheets)
   )
