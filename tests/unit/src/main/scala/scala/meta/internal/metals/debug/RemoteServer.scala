@@ -64,6 +64,7 @@ private[debug] final class RemoteServer(
   override def setBreakpoints(
       args: SetBreakpointsArguments
   ): CompletableFuture[SetBreakpointsResponse] = {
+    pprint.log(args)
     sendRequest("setBreakpoints", args)
   }
 

@@ -21,7 +21,11 @@ import munit.GenericBeforeEach
 import munit.Location
 import munit.TestOptions
 import org.eclipse.lsp4j.debug.SetBreakpointsResponse
-
+import scala.meta.internal.metals.debug.SourcePathAdapter
+import scala.meta.io.AbsolutePath
+import org.eclipse.lsp4j.debug.SourceBreakpoint
+import tests.DapTestEnrichments._
+import org.eclipse.lsp4j.debug.Source
 abstract class BaseDapSuite(
     suiteName: String,
     initializer: BuildServerInitializer,
@@ -82,8 +86,43 @@ abstract class BaseDapSuite(
         .filter(_.breakpoints.nonEmpty)
         .map { file =>
           val path = server.toPath(file.relativePath)
-          debugger.setBreakpoints(path, file.breakpoints)
+          debugger.setBreakpoints(
+            path.toDAP,
+            file.breakpoints.map(_.toBreakpoint).toVector
+          )
         }
+    }
+  }
+
+  def setBreakpointsInDependencies(
+      debugger: TestDebugger,
+      dependencyBreakpoints: Map[String, Vector[Int]]
+  ): Future[Vector[SetBreakpointsResponse]] = {
+    val adapter = SourcePathAdapter(
+      server.server.buildTargets,
+      server.server.buildTargets.all.map(_.getId).toVector,
+      true
+    )
+    Future.sequence {
+      dependencyBreakpoints.map { case (file, lines) =>
+        val path = AbsolutePath(file)
+        val adaptedPathOpt = adapter.toDapURI(path)
+        assert(
+          adaptedPathOpt.isDefined,
+          "SourcePathAdapter couldn't adapt path"
+        )
+        val adaptedPath = adaptedPathOpt.get
+        val source = new Source
+        source.setName("List.scala")
+        source.setPath(adaptedPath.toString())
+        pprint.log(adaptedPath)
+        val breakpoints = lines.map { line =>
+          val breakpoint = new SourceBreakpoint
+          breakpoint.setLine(line)
+          breakpoint
+        }
+        debugger.setBreakpoints(source, breakpoints)
+      }.toVector
     }
   }
 
@@ -96,7 +135,7 @@ abstract class BaseDapSuite(
         .filter(_.breakpoints.nonEmpty)
         .map { file =>
           val path = server.toPath(file.relativePath)
-          debugger.setBreakpoints(path, Nil)
+          debugger.setBreakpoints(path.toDAP, Vector.empty)
         }
     }
   }
@@ -107,7 +146,8 @@ abstract class BaseDapSuite(
       name: TestOptions,
       main: Option[String] = None
   )(
-      source: String
+      source: String,
+      dependencyBreakpoints: Map[String, Vector[Int]] = Map.empty
   )(implicit loc: Location): Unit = {
     test(name) {
 
@@ -122,7 +162,10 @@ abstract class BaseDapSuite(
         debugger <- debugMain("a", main.getOrElse("a.Main"), navigator)
         _ <- debugger.initialize
         _ <- debugger.launch
-        _ <- setBreakpoints(debugger, debugLayout)
+        r <- setBreakpoints(debugger, debugLayout)
+        _ = pprint.log(r)
+        result <- setBreakpointsInDependencies(debugger, dependencyBreakpoints)
+        _ = pprint.log(result)
         _ <- debugger.configurationDone
         _ <- debugger.shutdown
       } yield ()

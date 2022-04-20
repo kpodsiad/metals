@@ -22,6 +22,8 @@ import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.SetBreakpointsResponse
 import org.eclipse.lsp4j.debug.StoppedEventArguments
 import tests.DapTestEnrichments._
+import org.eclipse.lsp4j.debug.SourceBreakpoint
+import org.eclipse.lsp4j.debug.Source
 
 final class TestDebugger(
     connect: RemoteServer.Listener => Debugger,
@@ -56,11 +58,10 @@ final class TestDebugger(
   }
 
   def setBreakpoints(
-      path: AbsolutePath,
-      positions: List[Position]
+      source: Source,
+      positions: Vector[SourceBreakpoint]
   ): Future[SetBreakpointsResponse] = {
-    val source = path.toDAP
-    val breakpoints = positions.map(_.toBreakpoint).toArray
+    val breakpoints = positions.toArray
     ifNotFailed(debugger.setBreakpoints(source, breakpoints))
       .map { response =>
         // the breakpoint notification we receive does not contain the source

@@ -30,6 +30,26 @@ abstract class BaseBreakpointDapSuite(
                 |""".stripMargin
   )
 
+  assertBreakpoints("breakpoint-in-dependency".only)(
+    source = """|/a/src/main/scala/a/Main.scala
+                |package a
+                |
+                |object Main {
+                |  def main(args: Array[String]): Unit = {
+                |    val x = List(1,2,3).map(_ + 2)
+                |    System.exit(0)
+                |  }
+                |}
+                |""".stripMargin,
+    Map(
+      (
+        // "s"jar:${coursierCacheDir.toUri}/v1/https/repo1.maven.org/maven2/ch/epfl/scala/com-microsoft-java-debug-core/0.21.0%2B1-7f1080f1/com-microsoft-java-debug-core-0.21.0%2B1-7f1080f1-sources.jar!/com/microsoft/java/debug/core/protocol/Events.java",
+        "/Users/kpodsiadlo/vl/metals/tests/slow/target/e2e/sbt-debug-breakpoint/breakpoint-in-dependency/jar:file%3A/Users/kpodsiadlo/Library/Caches/Coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.8/scala-library-2.13.8-sources.jar%21/scala/collection/immutable/List.scala",
+        Vector(245)
+      )
+    )
+  )
+
   assertBreakpoints("succeeding-class")(
     source = """|/a/src/main/scala/a/Main.scala
                 |package a

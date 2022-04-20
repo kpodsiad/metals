@@ -14,8 +14,10 @@ import scala.meta.internal.mtags.URIEncoderDecoder
 import scala.meta.io.AbsolutePath
 
 import ch.epfl.scala.bsp4j.BuildTargetIdentifier
+import scala.util.Failure
+import scala.util.Success
 
-private[debug] final class SourcePathAdapter(
+final class SourcePathAdapter(
     workspace: AbsolutePath,
     sources: Set[AbsolutePath],
     buildTargets: BuildTargets,
@@ -28,26 +30,42 @@ private[debug] final class SourcePathAdapter(
   def toDapURI(sourcePath: AbsolutePath): Option[URI] = {
     if (sources.contains(sourcePath)) Some(sourcePath.toURI)
     else if (supportVirtualDocuments) {
-      val sourceFileJarPath = workspace.toNIO
-        .relativize(sourcePath.toNIO)
-        .toString
-        .stripPrefix("jar:")
-      val decodedPath =
-        URIEncoderDecoder.decode(sourceFileJarPath).toAbsolutePath
-      val parts = decodedPath.toNIO.iterator().asScala.map(_.toString).toVector
-      val jarPartIndex = parts.indexWhere(path => path.endsWith(".jar!"))
-      val jarPath = AbsolutePath(
-        parts
-          .take(jarPartIndex + 1)
-          .mkString(File.separator, File.separator, "")
-          .stripSuffix("!")
-      )
-      val relative = parts.drop(jarPartIndex + 1).mkString(File.separator)
+      Try {
+        pprint.log(workspace)
+        pprint.log(sourcePath)
+        val sourceFileJarPath = workspace.toNIO
+          .relativize(sourcePath.toNIO)
+          .toString
+          .stripPrefix("jar:")
+        val x = URIEncoderDecoder.decode(sourceFileJarPath)
+        pprint.log(x)
+        val decodedPath =
+          x.toAbsolutePath
+        val parts =
+          decodedPath.toNIO.iterator().asScala.map(_.toString).toVector
+        val jarPartIndex = parts.indexWhere(path => path.endsWith(".jar!"))
+        val jarPath = AbsolutePath(
+          parts
+            .take(jarPartIndex + 1)
+            .mkString(File.separator, File.separator, "")
+            .stripSuffix("!")
+        )
+        val relative = parts.drop(jarPartIndex + 1).mkString(File.separator)
 
-      val sourceURI = FileIO.withJarFileSystem(jarPath, create = false)(root =>
-        root.resolve(relative).toURI
-      )
-      Some(sourceURI)
+        pprint.log(relative)
+        val sourceURI =
+          FileIO.withJarFileSystem(jarPath, create = false)(root =>
+            root.resolve(relative).toURI
+          )
+        sourceURI
+      } match {
+        case Failure(exception) =>
+          exception.printStackTrace()
+          None
+        case Success(value) =>
+          pprint.log(value.toString())
+          Some(value)
+      }
     } else {
       // if sourcePath is a dependency source file
       // we retrieve the original source jar and we build the uri innside the source jar filesystem
@@ -82,7 +100,7 @@ private[debug] final class SourcePathAdapter(
   }
 }
 
-private[debug] object SourcePathAdapter {
+object SourcePathAdapter {
   def apply(
       buildTargets: BuildTargets,
       targets: Seq[BuildTargetIdentifier],
