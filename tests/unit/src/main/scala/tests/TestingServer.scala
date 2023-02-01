@@ -20,6 +20,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContextExecutorService
 import scala.concurrent.Future
 import scala.concurrent.Promise
+import scala.util.Failure
+import scala.util.Success
 import scala.util.matching.Regex
 import scala.{meta => m}
 
@@ -630,6 +632,18 @@ final case class TestingServer(
     Debug.printEnclosing()
     scribe.info(s"Executing command [${command.id}]")
     fullServer.executeCommand(command.toExecuteCommandParams()).asScala
+  }
+
+  def listBuildTargets: Future[List[String]] = {
+    for {
+      targetsArray <- executeCommand(ServerCommands.ListBuildTargets)
+    } yield targetsArray.toJson.as[Array[String]] match {
+      case Failure(exception) =>
+        scribe.error("Could not read build targets", exception)
+        Nil
+      case Success(targets) =>
+        targets.toList
+    }
   }
 
   /**

@@ -97,6 +97,15 @@ object DebugProtocol {
     response
   }
 
+  object EmptyResponse {
+    def apply(initialize: DebugRequestMessage) = {
+      val response = new DebugResponseMessage
+      response.setId(initialize.getId())
+      response.setMethod(initialize.getMethod())
+      response
+    }
+  }
+
   object SyntheticMessage {
     def unapply(msg: IdentifiableMessage): Option[IdentifiableMessage] = {
       if (msg.getId == null) Some(msg)
@@ -132,6 +141,36 @@ object DebugProtocol {
           case args if args.getNoDebug => DebugMode.Disabled
           case _ => DebugMode.Enabled
         }
+    }
+  }
+
+  object ConfigurationDone {
+    def unapply(
+        request: DebugRequestMessage
+    ): Option[Option[dap.ConfigurationDoneArguments]] = {
+      if (request.getMethod != "configurationDone") None
+      else
+        Some(
+          parse[dap.ConfigurationDoneArguments](request.getParams).toOption
+        )
+    }
+  }
+
+  object DisconnectRequest {
+    def unapply(request: DebugRequestMessage): Option[DisconnectArguments] = {
+      if (request.getMethod != "disconnect") None
+      else
+        parse[DisconnectArguments](request.getParams).toOption
+    }
+  }
+
+  object TerminateRequest {
+    def unapply(
+        request: DebugRequestMessage
+    ): Option[dap.TerminateArguments] = {
+      if (request.getMethod != "terminate") None
+      else
+        parse[dap.TerminateArguments](request.getParams).toOption
     }
   }
 

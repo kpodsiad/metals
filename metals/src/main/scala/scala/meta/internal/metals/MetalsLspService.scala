@@ -696,6 +696,7 @@ class MetalsLspService(
       userConfig,
     )
   )
+  buildClient.registerLogForwarder(debugProvider)
 
   private val scalafixProvider: ScalafixProvider = ScalafixProvider(
     buffers,

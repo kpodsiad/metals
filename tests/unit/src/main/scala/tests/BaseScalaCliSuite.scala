@@ -18,7 +18,7 @@ import ch.epfl.scala.bsp4j.MessageType
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.MessageActionItem
 
-abstract class BaseScalaCliSuite(scalaVersion: String)
+abstract class BaseScalaCliSuite(val scalaVersion: String)
     extends BaseLspSuite(s"scala-cli-$scalaVersion")
     with ScriptsAssertions {
 
@@ -112,7 +112,7 @@ abstract class BaseScalaCliSuite(scalaVersion: String)
        |
        |""".stripMargin
 
-  private def scalaCliInitialize(
+  protected def scalaCliInitialize(
       useBsp: Boolean
   )(layout: String): Future[InitializeResult] = {
     if (!useBsp)

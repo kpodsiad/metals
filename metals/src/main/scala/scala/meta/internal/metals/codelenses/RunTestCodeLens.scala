@@ -63,8 +63,7 @@ final class RunTestCodeLens(
     val lenses = for {
       buildTargetId <- buildTargets.inverseSources(path)
       buildTarget <- buildTargets.info(buildTargetId)
-      // generate code lenses only for JVM based targets for Scala
-      if buildTarget.asScalaBuildTarget.forall(
+      isJVM = buildTarget.asScalaBuildTarget.forall(
         _.getPlatform == b.ScalaPlatform.JVM
       )
       connection <- buildTargets.buildServerOf(buildTargetId)
@@ -74,8 +73,15 @@ final class RunTestCodeLens(
     } yield {
       val classes = buildTargetClasses.classesOf(buildTargetId)
       if (connection.isScalaCLI && path.isAmmoniteScript) {
-        scalaCliCodeLenses(textDocument, buildTargetId, classes, distance)
+        scalaCliCodeLenses(
+          textDocument,
+          buildTargetId,
+          classes,
+          distance,
+          isJVM,
+        )
       } else if (
+        // TODO canRun
         buildTarget.getCapabilities.getCanDebug || connection.isBloop || connection.isSbt
       ) {
         codeLenses(
@@ -84,6 +90,7 @@ final class RunTestCodeLens(
           classes,
           distance,
           path,
+          isJVM,
         )
       } else { Nil }
 
@@ -148,6 +155,7 @@ final class RunTestCodeLens(
                 Nil.asJava,
                 Nil.asJava,
               ),
+              isJVM = true,
             )
           else
             Nil
@@ -164,6 +172,7 @@ final class RunTestCodeLens(
       classes: BuildTargetClasses.Classes,
       distance: TokenEditDistance,
       path: AbsolutePath,
+      isJVM: Boolean,
   ): Seq[l.CodeLens] = {
     for {
       occurrence <- textDocument.occurrences
@@ -172,19 +181,19 @@ final class RunTestCodeLens(
       commands = {
         val main = classes.mainClasses
           .get(symbol)
-          .map(mainCommand(target, _))
+          .map(mainCommand(target, _, isJVM))
           .getOrElse(Nil)
         val tests =
           // Currently tests can only be run via DAP
           if (clientConfig.isDebuggingProvider())
-            testClasses(target, classes, symbol)
+            testClasses(target, classes, symbol, isJVM)
           else Nil
         val fromAnnot = DebugProvider
           .mainFromAnnotation(occurrence, textDocument)
           .flatMap { symbol =>
             classes.mainClasses
               .get(symbol)
-              .map(mainCommand(target, _))
+              .map(mainCommand(target, _, isJVM))
           }
           .getOrElse(Nil)
         val javaMains =
@@ -209,6 +218,7 @@ final class RunTestCodeLens(
       target: BuildTargetIdentifier,
       classes: BuildTargetClasses.Classes,
       distance: TokenEditDistance,
+      isJVM: Boolean,
   ): Seq[l.CodeLens] = {
     val scriptFileName = textDocument.uri.stripSuffix(".sc")
 
@@ -218,7 +228,7 @@ final class RunTestCodeLens(
     val main =
       classes.mainClasses
         .get(expectedMainClass)
-        .map(mainCommand(target, _))
+        .map(mainCommand(target, _, isJVM))
         .getOrElse(Nil)
 
     val fromAnnotations = textDocument.occurrences.flatMap { occ =>
@@ -226,7 +236,7 @@ final class RunTestCodeLens(
         sym <- DebugProvider.mainFromAnnotation(occ, textDocument)
         cls <- classes.mainClasses.get(sym)
         range <- occurrenceRange(occ, distance)
-      } yield mainCommand(target, cls).map { cmd =>
+      } yield mainCommand(target, cls, isJVM).map { cmd =>
         new l.CodeLens(range, cmd, null)
       }
     }.flatten
@@ -246,13 +256,14 @@ final class RunTestCodeLens(
       target: BuildTargetIdentifier,
       classes: BuildTargetClasses.Classes,
       symbol: String,
+      isJVM: Boolean,
   ): List[l.Command] =
     if (userConfig().testUserInterface == TestUserInterfaceKind.CodeLenses)
       classes.testClasses
         .get(symbol)
         .toList
         .flatMap(symbolInfo =>
-          testCommand(target, symbolInfo.fullyQualifiedName)
+          testCommand(target, symbolInfo.fullyQualifiedName, isJVM)
         )
     else
       Nil
@@ -260,6 +271,7 @@ final class RunTestCodeLens(
   private def testCommand(
       target: b.BuildTargetIdentifier,
       className: String,
+      isJVM: Boolean,
   ): List[l.Command] = {
     val params = {
       val dataKind = b.DebugSessionParamsDataKind.SCALA_TEST_SUITES
@@ -267,15 +279,21 @@ final class RunTestCodeLens(
       sessionParams(target, dataKind, data)
     }
 
-    List(
-      command("test", StartRunSession, params),
-      command("debug test", StartDebugSession, params),
-    )
+    if (isJVM)
+      List(
+        command("test", StartRunSession, params),
+        command("debug test", StartDebugSession, params),
+      )
+    else
+      List(
+        command("test", StartRunSession, params)
+      )
   }
 
   private def mainCommand(
       target: b.BuildTargetIdentifier,
       main: b.ScalaMainClass,
+      isJVM: Boolean,
   ): List[l.Command] = {
     val data = buildTargetClasses.jvmRunEnvironment
       .get(target)
@@ -290,7 +308,7 @@ final class RunTestCodeLens(
       sessionParams(target, dataKind, data)
     }
 
-    if (clientConfig.isDebuggingProvider())
+    if (clientConfig.isDebuggingProvider() && isJVM)
       List(
         command("run", StartRunSession, params),
         command("debug", StartDebugSession, params),
