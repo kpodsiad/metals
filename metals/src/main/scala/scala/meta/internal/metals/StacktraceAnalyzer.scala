@@ -213,7 +213,10 @@ object StacktraceAnalyzer {
     if (symbol.contains("$package$")) {
       symbolIn.split("\\$package\\$") match {
         case Array(filePath, symbol) =>
-          val re = filePath.replace('.', '/') + "$package" + symbol
+          val re =
+            if (filePath.contains('/'))
+              filePath.replace('.', '/') + "$package" + symbol
+            else "_empty_/" + filePath + "$package" + symbol
           List(re + "().")
         case _ =>
           Nil
