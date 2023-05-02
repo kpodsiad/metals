@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.util.Try
 
 import scala.meta.internal.metals.Cancelable
@@ -20,7 +21,6 @@ import org.eclipse.lsp4j.jsonrpc.MessageConsumer
 import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugNotificationMessage
 import org.eclipse.lsp4j.jsonrpc.messages.IdentifiableMessage
 import org.eclipse.lsp4j.jsonrpc.messages.Message
-import scala.concurrent.Promise
 
 /**
  * Runner used for basic DAP run requests without the overhead of
@@ -101,7 +101,7 @@ class DebugRunner(
     }
   }
 
-  def setIdFromMessage(msg: Message) = {
+  def setIdFromMessage(msg: Message): Unit = {
     msg match {
       case message: IdentifiableMessage =>
         Try(message.getId().toInt).foreach(lastId.set)
@@ -109,10 +109,10 @@ class DebugRunner(
     }
   }
 
-  def stdout(message: String) =
+  def stdout(message: String): Unit =
     output(message, OutputEventArgumentsCategory.STDOUT)(_ => None)
 
-  def error(message: String) = {
+  def error(message: String): Unit = {
     output(message, OutputEventArgumentsCategory.STDERR) { notification =>
       stackTraceAnalyzer
         .fileLocationFromLine(message)

@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.{util => ju}
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
@@ -26,7 +27,6 @@ import ch.epfl.scala.{bsp4j => b}
 import com.google.gson.JsonObject
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.{lsp4j => l}
-import scala.collection.mutable.ListBuffer
 
 /**
  * Used to forward messages from the build server. Messages might
@@ -58,7 +58,9 @@ final class ForwardingMetalsBuildClient(
     with Cancelable {
 
   private val forwarders = ListBuffer.empty[LogForwarder]
-  def registerLogForwarder(logForwarder: LogForwarder) = {
+  def registerLogForwarder(
+      logForwarder: LogForwarder
+  ): ListBuffer[LogForwarder] = {
     forwarders.append(logForwarder)
   }
   private case class Compilation(

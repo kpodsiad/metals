@@ -98,7 +98,7 @@ object DebugProtocol {
   }
 
   object EmptyResponse {
-    def apply(initialize: DebugRequestMessage) = {
+    def apply(initialize: DebugRequestMessage): DebugResponseMessage = {
       val response = new DebugResponseMessage
       response.setId(initialize.getId())
       response.setMethod(initialize.getMethod())
