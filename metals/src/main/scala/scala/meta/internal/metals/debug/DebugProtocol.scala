@@ -156,14 +156,6 @@ object DebugProtocol {
     }
   }
 
-  object DisconnectRequest {
-    def unapply(request: DebugRequestMessage): Option[DisconnectArguments] = {
-      if (request.getMethod != "disconnect") None
-      else
-        parse[DisconnectArguments](request.getParams).toOption
-    }
-  }
-
   object TerminateRequest {
     def unapply(
         request: DebugRequestMessage
@@ -197,15 +189,14 @@ object DebugProtocol {
     }
   }
 
-  object RestartRequest {
-    def unapply(request: RequestMessage): Option[DisconnectArguments] = {
-      if (request.getMethod != "disconnect") None
+  object DisconnectRequest {
+    def unapply(request: DebugRequestMessage): Option[DisconnectArguments] = {
+      if (request.getMethod != DisconnectRequest.name) None
       else {
-        parse[DisconnectArguments](request.getParams)
-          .filter(_.getRestart)
-          .toOption
+        parse[DisconnectArguments](request.getParams).toOption
       }
     }
+    val name = "disconnect"
   }
 
   object OutputNotification {

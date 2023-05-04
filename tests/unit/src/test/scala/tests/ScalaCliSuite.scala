@@ -1,9 +1,10 @@
 package tests
 
-import scala.meta.internal.metals.DebugUnresolvedMainClassParams
-import scala.meta.internal.metals.{BuildInfo => V}
 import scala.concurrent.Future
+
+import scala.meta.internal.metals.DebugUnresolvedMainClassParams
 import scala.meta.internal.metals.debug.TestDebugger
+import scala.meta.internal.metals.{BuildInfo => V}
 
 class ScalaCliSuite extends tests.BaseScalaCliSuite(V.scala213) {
 
