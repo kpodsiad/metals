@@ -235,7 +235,6 @@ class BuildServerConnection private (
   ): Future[RunResult] = {
     val completableFuture = register(server => server.buildTargetRun(params))
     cancelPromise.future.foreach { _ =>
-      pprint.log(params)
       completableFuture.cancel(true)
     }
     completableFuture.asScala

@@ -57,11 +57,13 @@ final class ForwardingMetalsBuildClient(
 ) extends MetalsBuildClient
     with Cancelable {
 
-  private val forwarders = ListBuffer.empty[LogForwarder]
+  private val forwarders =
+    new ju.concurrent.atomic.AtomicReference(ListBuffer.empty[LogForwarder])
+
   def registerLogForwarder(
       logForwarder: LogForwarder
   ): ListBuffer[LogForwarder] = {
-    forwarders.append(logForwarder)
+    forwarders.getAndUpdate(_.append(logForwarder))
   }
   private case class Compilation(
       timer: Timer,
@@ -116,16 +118,16 @@ final class ForwardingMetalsBuildClient(
   def onBuildLogMessage(params: l.MessageParams): Unit = {
     params.getType match {
       case l.MessageType.Error =>
-        forwarders.foreach(_.error(params.getMessage()))
+        forwarders.get().foreach(_.error(params.getMessage()))
         scribe.error(params.getMessage)
       case l.MessageType.Warning =>
-        forwarders.foreach(_.warn(params.getMessage()))
+        forwarders.get().foreach(_.warn(params.getMessage()))
         scribe.warn(params.getMessage)
       case l.MessageType.Info =>
-        forwarders.foreach(_.info(params.getMessage()))
+        forwarders.get().foreach(_.info(params.getMessage()))
         scribe.info(params.getMessage)
       case l.MessageType.Log =>
-        forwarders.foreach(_.log(params.getMessage()))
+        forwarders.get().foreach(_.log(params.getMessage()))
         scribe.info(params.getMessage)
     }
   }
