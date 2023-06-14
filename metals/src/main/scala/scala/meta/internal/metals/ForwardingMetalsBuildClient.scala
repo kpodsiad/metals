@@ -2,10 +2,9 @@ package scala.meta.internal.metals.clients.language
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.{util => ju}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
@@ -58,12 +57,12 @@ final class ForwardingMetalsBuildClient(
     with Cancelable {
 
   private val forwarders =
-    new ju.concurrent.atomic.AtomicReference(ListBuffer.empty[LogForwarder])
+    new AtomicReference(List.empty[LogForwarder])
 
   def registerLogForwarder(
       logForwarder: LogForwarder
-  ): ListBuffer[LogForwarder] = {
-    forwarders.getAndUpdate(_.append(logForwarder))
+  ): List[LogForwarder] = {
+    forwarders.getAndUpdate(_.prepended(logForwarder))
   }
   private case class Compilation(
       timer: Timer,
@@ -79,7 +78,7 @@ final class ForwardingMetalsBuildClient(
     new ConcurrentHashMap[b.BuildTargetIdentifier, java.lang.Boolean]()
   )
 
-  val updatedTreeViews: ju.Set[b.BuildTargetIdentifier] =
+  val updatedTreeViews: java.util.Set[b.BuildTargetIdentifier] =
     ConcurrentHashSet.empty[b.BuildTargetIdentifier]
 
   def buildHasErrors(buildTargetId: b.BuildTargetIdentifier): Boolean = {
